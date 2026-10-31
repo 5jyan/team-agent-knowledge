@@ -1,0 +1,39 @@
+schema_version: 1
+type: bugfix
+id: COMP-015
+status: active
+title: "필수 model 설정이 빠졌을 때 항목을 알려주는 오류 메시지"
+revision: r1
+summary: "가상 설정 검사 예제에서 model 항목이 누락되면 일반 오류 대신 누락된 항목의 이름을 안내한다."
+problem:
+  statement: "기존 설정 검사는 model이 없을 때 '설정 오류'만 반환해 무엇을 고쳐야 하는지 알기 어렵다."
+cause:
+  statement: "기존 구현은 필수 model 키의 존재 여부를 확인하지만 오류에 그 키 이름을 포함하지 않는다."
+solution:
+  statement: "예제에서 model 키가 없으면 '설정 오류: model 항목이 없습니다'를 반환한다. model 키가 있으면 '설정 정상'을 반환한다."
+limitations:
+  - condition: "model 이외의 필수 항목, model 값의 유효성 또는 다른 설정 검사기에 적용하는 경우"
+    action: "이 예제만으로 동작을 판단하지 말고 별도의 요구사항과 테스트를 확인한다."
+  - condition: "설정 값에 민감한 정보가 들어 있는 경우"
+    action: "오류 메시지에 설정 값을 출력하지 않는다."
+scope:
+  applies_when:
+    - "이 저장소의 가상 설정 검사 예제에서 model 키가 빠진 경우의 메시지를 확인한다."
+  does_not_apply_when:
+    - "다른 필수 항목의 누락이나 실제 제품의 설정 규칙을 이 예제만으로 판단한다."
+evidence:
+  repository: "https://github.com/5jyan/team-agent-knowledge"
+  commit: "d79cb31e42ca2b7a66029232fbc0ad07290a7c58"
+  verified_at: "2026-10-31T13:08:00Z"
+  tests:
+    - command: "python3 -m unittest discover -s examples/config-validation -p 'test_*.py' -v"
+      result: "Python 3.12에서 3개 통과. model 누락 전후 메시지, model이 있는 경우, 다른 설정값 미노출을 확인했다."
+  run:
+    command: "python3 examples/config-validation/run_demo.py"
+    result: "model 누락 입력에서 기존은 '설정 오류', 개선 후는 '설정 오류: model 항목이 없습니다'. model이 있으면 두 방식 모두 '설정 정상'."
+maintenance:
+  owner: "5jyan"
+  review_after: "2027-01-31"
+  update_trigger: "필수 항목 또는 설정 검사의 오류 메시지가 바뀔 때"
+references:
+  - "https://github.com/5jyan/team-agent-knowledge/commit/d79cb31e42ca2b7a66029232fbc0ad07290a7c58"
