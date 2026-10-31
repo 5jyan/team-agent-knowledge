@@ -14,7 +14,7 @@
 
 `python3 -m unittest discover -s examples/demo-compiler -p 'test_*.py' -v`를 로컬에서 실행해 6개 테스트가 통과했다. r1의 겹치는 버퍼 회귀와 r2의 안전한 결과를 검증한다. 이 테스트의 A/B 표기는 Python 시뮬레이션이며 실제 AI Agent 실행은 아니다.
 
-## 별도 확인 필요
+## 초기 시점의 미확인 항목
 
 - 실제 사람의 후보 PR 근거 검토와 병합, 이후 Publisher 게시.
 - Claude Code에 Skill을 로드해 후보 PR을 만드는 실제 Agent 세션.
@@ -22,7 +22,7 @@
 - 개인 기억만 사용 / Git 원본 직접 제공 / Hindsight 사용 조건의 동일 작업 비교.
 - 서버 측 Bank별 ACL 및 Publisher 전용 쓰기 권한. 로컬 Bank 이름 분리는 권한 격리가 아니다.
 
-위 항목은 아직 성공 결과로 주장하지 않는다.
+위 목록은 초기 기록 당시의 상태이며, 이후 확인한 항목은 아래에 별도 기록한다.
 
 ## 후보 PR 생성 후 추가로 확인한 결과
 
@@ -31,3 +31,11 @@
 - 구현한 `HindsightClient`로 임시 Bank에 테스트 문서 `COMP-999`를 생성하고 같은 ID로 교체했을 때 문서는 1개였다. 문서를 지우고 0개임을 확인한 뒤 임시 Bank를 삭제했다. 실제 PR 병합부터 Publisher 전체 reconcile까지의 검증은 아니다.
 - 초기 `main` 커밋 `e8d49afc16b9af0be7b7f05e909f7abf9921fe59`의 [GitHub Actions 실행](https://github.com/5jyan/team-agent-knowledge/actions/runs/41197913546)이 성공했다. 형식 검사, 저장소 단위 테스트 20개, 모형 테스트 6개를 실행했다. 후보 PR의 CI는 해당 PR에서 별도 확인한다.
 - 실제 비공개 GitHub 저장소를 대상으로 `python scripts/validate.py knowledge --verify-remote`를 실행해 후보가 가리키는 커밋을 가져올 수 있음을 확인했다. 이는 링크된 CI 결과와 주장의 적절성에 대한 사람의 검토를 대체하지 않는다.
+
+## 이후 실제 게시 및 Agent 검증
+
+- 사용자가 PR #1을 병합한 main `3414c778b2c1212f167d99f7ec0c9806408504b0`에서 로컬 Publisher를 수동 실행했다. `team-compiler` Bank에 `COMP-014`가 생성됐고 recall에서 범위와 `document_id`를 확인했다. 자동 게시는 구현하지 않았다.
+- 별도 Codex Agent B가 Hindsight 팀 Bank를 검색하고 문서 ID 및 승인된 Git 원본을 확인한 후 통합 코드와 테스트를 작성했다. 주어진 복사 사례는 통과했다. 이어서 B가 길이 0의 경계조건을 추가로 점검했다. 실험 로그와 재실행 코드는 [experiments](experiments/README.md)에 있다.
+- 개인 기억만 사용한 조건과 승인 Git 문서만 사용한 조건에서도 같은 작업을 각각 1회 수행해 정답을 얻었다. 이 표본만으로 Hindsight의 정확도 우위를 주장할 수 없다.
+- 이 갱신 PR을 승인하기 전 팀 Bank 문서를 다시 조회했을 때 `revision: r1`이었고, 제안된 `revision: r2`는 아직 포함되지 않았다. 새 r2의 승인·게시 및 기존 Agent의 게시 후 재확인은 별도 단계다.
+- 실제 Claude Code 인증 세션에서 Skill을 실행한 결과, 서버 측 Bank별 ACL, 독립된 제3자 승인 및 후속 갱신의 게시 후 동작은 여전히 확인하지 못했다.

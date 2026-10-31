@@ -3,38 +3,42 @@ type: bugfix
 id: COMP-014
 status: active
 title: "겹치지 않는 버퍼 범위의 순방향 복사"
-revision: r1
-summary: "가상의 바이트 버퍼에서 원본과 대상 범위가 겹치지 않으면 순방향 복사를 사용할 수 있다."
+revision: r2
+summary: "가상의 바이트 버퍼에서 비겹침 복사는 순방향으로 처리하고, 길이 0은 유효 범위에서 no-op이다."
 problem:
   statement: "다른 작업에서 버퍼 복사 경로를 재사용할 때 결과가 보존되는 조건이 필요하다."
 cause:
   statement: "원본과 대상 범위가 겹치면 순방향 복사 중 아직 읽지 않은 원본 바이트가 덮일 수 있다."
 solution:
-  statement: "원본과 대상 범위가 겹치지 않는 경우에만 순방향 복사를 사용한다."
+  statement: "원본과 대상 범위가 겹치지 않는 경우에만 순방향 복사를 사용한다. 길이 0이고 두 시작점이 각각 0부터 버퍼 길이 이하면 유효한 no-op이다."
 limitations:
   - condition: "입력과 출력의 버퍼 범위가 겹치는 경우"
     action: "순방향 복사 규칙을 적용하지 말고 원본 스냅샷을 사용하는 안전한 경로를 사용한다."
   - condition: "실제 컴파일러, 다른 런타임 또는 다른 메모리 모델"
     action: "이 장난감 예제만으로 동작이나 성능을 보장하지 않는다."
+  - condition: "복사 길이가 양수이고 원본이나 대상 시작점이 버퍼 끝인 경우"
+    action: "해당 범위는 버퍼를 벗어나므로 거절한다."
 scope:
   applies_when:
     - "가상의 bytearray 예제에서 복사 범위가 겹치지 않고 인수가 유효하다."
+    - "길이 0이면 원본과 대상 시작점이 각각 0부터 버퍼 길이 이하인 빈 복사는 유효하다."
   does_not_apply_when:
     - "범위가 겹치거나 예제 외부의 메모리 모델을 사용한다."
 evidence:
   repository: "https://github.com/5jyan/team-agent-knowledge"
-  commit: "e8d49afc16b9af0be7b7f05e909f7abf9921fe59"
-  verified_at: "2026-10-31T11:41:56Z"
+  commit: "8bc40c1020bf09e9cd2eacea93d1d4ecfdaa9470"
+  verified_at: "2026-10-31T11:58:38Z"
   tests:
     - command: "python3 -m unittest discover -s examples/demo-compiler -p 'test_*.py' -v"
-      result: "로컬에서 6개 통과. 겹치는 범위의 r1 회귀와 안전 경로도 별도로 검증했다."
+      result: "로컬에서 8개 통과. 길이 0인 경계조건과 양수 길이 범위 오류도 확인했다."
   run:
     command: "python3 examples/demo-compiler/run_demo.py"
     result: "비겹침 복사와 겹침 회귀·안전 경로를 재현하는 결정적 Python 시뮬레이션이다. 실제 Agent 호출은 아니다."
-  ci_run_url: "https://github.com/5jyan/team-agent-knowledge/actions/runs/41197913546"
+  ci_run_url: "https://github.com/5jyan/team-agent-knowledge/actions/runs/41199056178"
 maintenance:
   owner: "5jyan"
   review_after: "2027-01-31"
   update_trigger: "예제의 버퍼 처리 조건 또는 회귀 테스트가 달라질 때"
 references:
   - "https://github.com/5jyan/team-agent-knowledge/commit/e8d49afc16b9af0be7b7f05e909f7abf9921fe59"
+  - "https://github.com/5jyan/team-agent-knowledge/commit/8bc40c1020bf09e9cd2eacea93d1d4ecfdaa9470"

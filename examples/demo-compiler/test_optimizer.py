@@ -75,6 +75,22 @@ class BufferCopyDemoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             copy_range(memory, src=0, dst=2, length=2)
 
+    def test_empty_copy_accepts_every_boundary_without_mutation(self) -> None:
+        # Agent B checked the previously undocumented end-of-buffer boundary.
+        for size in range(8):
+            original = bytearray(range(size))
+            for src in range(size + 1):
+                for dst in range(size + 1):
+                    memory = original.copy()
+                    plan = copy_range(memory, src=src, dst=dst, length=0)
+                    self.assertEqual(memory, original)
+                    self.assertEqual(plan.path, "nonoverlap-fast")
+
+    def test_positive_copy_cannot_start_at_end(self) -> None:
+        for src, dst in ((3, 0), (0, 3), (3, 3)):
+            with self.assertRaises(ValueError):
+                copy_range(bytearray(b"abc"), src=src, dst=dst, length=1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
