@@ -1,7 +1,7 @@
 schema_version: 1
 type: bugfix
 id: COMP-014
-status: active
+status: retired
 title: "겹치지 않는 버퍼 범위의 순방향 복사"
 revision: r3
 summary: "가상의 바이트 버퍼에서 비겹침 복사는 순방향으로 처리하고, 길이 0은 유효 범위에서 no-op이다. 현재 Python 예제의 src/dst/length bool은 정수 검사에 통과해 False=0, True=1로 처리된다."
