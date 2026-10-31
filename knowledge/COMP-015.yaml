@@ -1,0 +1,50 @@
+schema_version: 1
+type: bugfix
+id: COMP-015
+status: active
+title: "예제 프로젝트의 unittest 0개 성공은 테스트 실행 근거가 아니다"
+revision: r1
+summary: "이 예제 프로젝트 루트에서 기본 unittest가 0개로 성공하면 tests 디렉터리의 테스트가 실행됐다는 근거로 삼지 말고, 명시적 discovery 명령의 실제 실행 개수를 확인한다."
+problem:
+  statement: "examples/unittest-discovery 프로젝트 루트에서 python3 -m unittest가 exit 0과 Ran 0 tests로 끝나도 tests 디렉터리의 테스트가 실행되지 않았다."
+cause:
+  statement: "이 예제는 tests/__init__.py가 없는 구조이고, 기본 명령은 이 구조의 tests 디렉터리 테스트를 발견하지 못했다."
+solution:
+  statement: "이 예제에서는 저장소 루트에서 cd examples/unittest-discovery && python3 -m unittest discover -s tests -p 'test_*.py' -v를 실행하고, exit 0뿐 아니라 Ran 2 tests와 두 테스트의 ok를 확인한다."
+limitations:
+  - condition: "examples/unittest-discovery의 디렉터리 구조, 테스트 파일 또는 Python 실행 환경이 근거 커밋과 달라지는 경우"
+    action: "이 후보의 명령과 테스트 개수를 그대로 적용하지 말고 현재 구조에서 discovery 결과를 다시 확인한다."
+  - condition: "기본 python3 -m unittest가 exit 0과 Ran 0 tests를 출력하는 경우"
+    action: "성공 근거로 사용하지 말고 tests를 시작점으로 지정한 명령을 실행해 0보다 큰 실제 테스트 개수를 확인한다."
+  - condition: "다른 Python 프로젝트, Python 버전 또는 discovery 설정의 동작을 판단하는 경우"
+    action: "이 예제의 관찰을 일반화하지 말고 해당 프로젝트의 별도 재현 결과를 사용한다."
+  - condition: "통합 테스트 디렉터리의 존재·누락 또는 애플리케이션 동작을 검증하는 경우"
+    action: "이 표준 라이브러리 JSON 테스트 예제의 결과를 근거로 삼지 않는다."
+scope:
+  applies_when:
+    - "근거 커밋의 examples/unittest-discovery에서 tests/test_json_round_trip.py를 대상으로 실행한다."
+    - "명령을 examples/unittest-discovery 프로젝트 루트에서 실행하거나 저장소 루트에서 해당 디렉터리로 이동한 뒤 실행한다."
+    - "테스트 실행 여부를 exit code가 아니라 unittest가 보고한 실제 개수와 개별 결과로 확인한다."
+  does_not_apply_when:
+    - "예제 디렉터리 밖의 테스트 레이아웃, 테스트 패키지 표식 또는 discovery 설정을 판단한다."
+    - "Ran 0 tests의 성공을 테스트 통과, 기능 정상 또는 통합 테스트 완료로 해석한다."
+evidence:
+  repository: "https://github.com/5jyan/team-agent-knowledge"
+  commit: "2a8882f56147bab5cf392ed0024325c99b89668b"
+  verified_at: "2026-10-31T12:55:59Z"
+  tests:
+    - command: "cd examples/unittest-discovery && python3 -m unittest"
+      result: "커밋 2a8882f 기준 exit 0, `Ran 0 tests` 및 `OK`. 성공했지만 실행된 테스트는 0개였다."
+    - command: "cd examples/unittest-discovery && python3 -m unittest discover -s tests -p 'test_*.py' -v"
+      result: "커밋 2a8882f 기준 exit 0. test_round_trip_preserves_fields와 test_sorted_encoding_is_stable가 각각 ok였고 `Ran 2 tests` 및 `OK`를 관찰했다."
+  run:
+    command: "cd examples/unittest-discovery && python3 -m unittest discover -s tests -p 'test_*.py' -v"
+    result: "표준 라이브러리 JSON 테스트 2개가 실제 실행되어 모두 통과했다."
+maintenance:
+  owner: "5jyan"
+  review_after: "2027-10-31"
+  update_trigger: "예제의 tests 경로·파일명·패키지 구조 또는 재현 명령이 바뀌거나 discovery 결과가 달라질 때"
+references:
+  - "https://github.com/5jyan/team-agent-knowledge/commit/2a8882f56147bab5cf392ed0024325c99b89668b"
+  - "https://github.com/5jyan/team-agent-knowledge/blob/2a8882f56147bab5cf392ed0024325c99b89668b/examples/unittest-discovery/README.md"
+  - "https://github.com/5jyan/team-agent-knowledge/blob/2a8882f56147bab5cf392ed0024325c99b89668b/examples/unittest-discovery/tests/test_json_round_trip.py"
