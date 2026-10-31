@@ -1,0 +1,40 @@
+# Copy this file to knowledge/COMP-001.yaml and replace every value.
+schema_version: 1
+type: bugfix
+id: COMP-001
+status: active
+title: "Illustrative title (replace before committing)"
+revision: r1
+summary: "One sentence describing the reusable compiler knowledge."
+problem:
+  statement: "What failed or was unexpectedly difficult?"
+cause:
+  statement: "What evidence-backed cause explains the problem?"
+solution:
+  statement: "What should another engineer or Agent do?"
+limitations:
+  - condition: "When the input and output buffers overlap"
+    action: "Do not apply the optimization; use the safe path."
+scope:
+  applies_when:
+    - "The input buffers are disjoint."
+  does_not_apply_when:
+    - "The compiler version or aliasing assumptions differ from the evidence."
+evidence:
+  repository: "https://github.com/OWNER/REPOSITORY"
+  commit: "0000000000000000000000000000000000000000"
+  verified_at: "2026-10-31T00:00:00Z"
+  tests:
+    - command: "pytest tests/test_example.py -q"
+      result: "passed"
+  run:
+    command: "python demo.py"
+    result: "observed expected output"
+  # Add the actual GitHub Actions run URL after CI completes; do not invent one.
+  # ci_run_url: "https://github.com/OWNER/REPOSITORY/actions/runs/<real-run-id>"
+maintenance:
+  owner: "compiler-team"
+  review_after: "2026-12-31"
+  update_trigger: "A new compiler release or regression test changes the supported scope."
+references:
+  - "https://github.com/OWNER/REPOSITORY/commit/0000000000000000000000000000000000000000"
