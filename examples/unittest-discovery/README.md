@@ -14,8 +14,7 @@ cd examples/unittest-discovery
 python3 -m unittest
 ```
 
-이 예제의 구조에서는 명령이 성공해도 `Ran 0 tests`가 관찰된다. 성공 종료
-코드만으로 테스트가 실행됐다고 판단하지 않는다.
+이 예제에서 Python 3.9.6은 `Ran 0 tests`, `OK`, 종료 코드 0을 보였고 Python 3.12.16은 `Ran 0 tests`, `NO TESTS RAN`, 종료 코드 5를 보였다. Python 버전에 따라 종료 결과가 다르므로, 실제 테스트 실행 개수를 확인한다.
 
 `tests/`를 시작점으로 지정해 실제 테스트를 실행하려면 다음 명령을 사용한다.
 
