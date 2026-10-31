@@ -3,14 +3,14 @@ type: bugfix
 id: COMP-014
 status: active
 title: "겹치지 않는 버퍼 범위의 순방향 복사"
-revision: r2
-summary: "가상의 바이트 버퍼에서 비겹침 복사는 순방향으로 처리하고, 길이 0은 유효 범위에서 no-op이다."
+revision: r3
+summary: "가상의 바이트 버퍼에서 비겹침 복사는 순방향으로 처리하고, 길이 0은 유효 범위에서 no-op이다. 현재 Python 예제의 src/dst/length bool은 정수 검사에 통과해 False=0, True=1로 처리된다."
 problem:
   statement: "다른 작업에서 버퍼 복사 경로를 재사용할 때 결과가 보존되는 조건이 필요하다."
 cause:
   statement: "원본과 대상 범위가 겹치면 순방향 복사 중 아직 읽지 않은 원본 바이트가 덮일 수 있다."
 solution:
-  statement: "원본과 대상 범위가 겹치지 않는 경우에만 순방향 복사를 사용한다. 길이 0이고 두 시작점이 각각 0부터 버퍼 길이 이하면 유효한 no-op이다."
+  statement: "원본과 대상 범위가 겹치지 않는 경우에만 순방향 복사를 사용한다. 길이 0이고 두 시작점이 각각 0부터 버퍼 길이 이하면 유효한 no-op이다. 이 예제의 현재 정수 검사는 Python bool을 별도로 제외하지 않으므로 src, dst, length의 False와 True를 각각 0과 1로 해석한다. bool을 허용하거나 거부할지는 별도 API 계약에서 명시해야 한다."
 limitations:
   - condition: "입력과 출력의 버퍼 범위가 겹치는 경우"
     action: "순방향 복사 규칙을 적용하지 말고 원본 스냅샷을 사용하는 안전한 경로를 사용한다."
@@ -18,27 +18,36 @@ limitations:
     action: "이 장난감 예제만으로 동작이나 성능을 보장하지 않는다."
   - condition: "복사 길이가 양수이고 원본이나 대상 시작점이 버퍼 끝인 경우"
     action: "해당 범위는 버퍼를 벗어나므로 거절한다."
+  - condition: "src, dst 또는 length에 Python bool이 들어오는 경우"
+    action: "현재 canonical optimizer는 bool을 정수와 구별하지 않아 입력을 거부하지 않고 False=0, True=1로 처리한다. COMP-014가 bool 거부를 보장한다고 가정하지 말고, 엄격한 정수 전용 계약이 필요하면 별도 검증을 정의한다."
+  - condition: "비교용 다른 구현의 타입 검증을 canonical optimizer에 일반화하는 경우"
+    action: "experiments/agent-b/buffer_copy.py는 bool을 명시적으로 거부하지만, 그 동작은 canonical optimizer나 COMP-014의 현재 계약을 대체하지 않는다."
 scope:
   applies_when:
     - "가상의 bytearray 예제에서 복사 범위가 겹치지 않고 인수가 유효하다."
     - "길이 0이면 원본과 대상 시작점이 각각 0부터 버퍼 길이 이하인 빈 복사는 유효하다."
+    - "이 저장소의 canonical optimizer.py에서 src, dst 또는 length가 Python bool인 입력의 현재 동작을 해석한다. False는 0, True는 1처럼 처리된다."
   does_not_apply_when:
     - "범위가 겹치거나 예제 외부의 메모리 모델을 사용한다."
+    - "bool을 반드시 거부해야 하는 별도 API 계약을 설계하거나 canonical optimizer 외 구현의 타입 검증 동작을 추론한다."
 evidence:
   repository: "https://github.com/5jyan/team-agent-knowledge"
-  commit: "8bc40c1020bf09e9cd2eacea93d1d4ecfdaa9470"
-  verified_at: "2026-10-31T11:58:38Z"
+  commit: "c79a8d939f5773c6f8c94ef8841a9d7bbce59f9f"
+  verified_at: "2026-10-31T12:22:29Z"
   tests:
     - command: "python3 -m unittest discover -s examples/demo-compiler -p 'test_*.py' -v"
-      result: "로컬에서 8개 통과. 길이 0인 경계조건과 양수 길이 범위 오류도 확인했다."
+      result: "커밋 c79a8d9 기준 9개 통과. test_bool_inputs.py에서 src/dst/length 각각의 False와 True를 canonical optimizer가 수용하고, False=0·True=1에 해당하는 bytearray 결과를 확인했다: src=False→bytearray(b'abad'), src=True→bytearray(b'abbd'), dst=False→bytearray(b'bbcd'), dst=True→bytearray(b'aacd'), length=False→bytearray(b'abcd'), length=True→bytearray(b'abad')."
+    - command: "python3 -m unittest discover -s experiments/agent-b -p 'test_*.py' -v"
+      result: "커밋 c79a8d9 기준 8개 통과. 비교 구현의 test_bool_inputs.py에서 같은 6개 bool 입력을 모두 TypeError('src, dst, and length must be integers')로 거부하는 것을 확인했다. 이는 비교 구현의 별도 동작이며 canonical optimizer의 동작 변경을 의미하지 않는다."
   run:
-    command: "python3 examples/demo-compiler/run_demo.py"
-    result: "비겹침 복사와 겹침 회귀·안전 경로를 재현하는 결정적 Python 시뮬레이션이다. 실제 Agent 호출은 아니다."
-  ci_run_url: "https://github.com/5jyan/team-agent-knowledge/actions/runs/41199056178"
+    command: "DEMO_SOURCE_COMMIT=\"c79a8d939f5773c6f8c94ef8841a9d7bbce59f9f\" python3 examples/demo-compiler/run_demo.py"
+    result: "exit 0. source_commit=c79a8d939f5773c6f8c94ef8841a9d7bbce59f9f를 출력하고 비겹침 결과 abcdabcd, r1 겹침 회귀 ababab, r2 안전 결과 ababcd를 재현했다. 실제 Agent 호출은 아니다."
 maintenance:
   owner: "5jyan"
   review_after: "2027-01-31"
-  update_trigger: "예제의 버퍼 처리 조건 또는 회귀 테스트가 달라질 때"
+  update_trigger: "예제의 버퍼 처리 조건, 타입 검증 또는 회귀 테스트가 달라질 때"
 references:
   - "https://github.com/5jyan/team-agent-knowledge/commit/e8d49afc16b9af0be7b7f05e909f7abf9921fe59"
   - "https://github.com/5jyan/team-agent-knowledge/commit/8bc40c1020bf09e9cd2eacea93d1d4ecfdaa9470"
+  - "https://github.com/5jyan/team-agent-knowledge/commit/b98bcca594a14c74d1296a9624c85511096f5209"
+  - "https://github.com/5jyan/team-agent-knowledge/commit/c79a8d939f5773c6f8c94ef8841a9d7bbce59f9f"
