@@ -14,8 +14,9 @@ def validate_config_before(config: Mapping[str, object]) -> str:
 
 
 def validate_config(config: Mapping[str, object]) -> str:
-    """Report a missing ``model`` key without exposing configuration values."""
+    """Report all missing required keys without exposing configuration values."""
 
-    if "model" not in config:
-        return "설정 오류: model 항목이 없습니다"
+    missing = [key for key in ("model", "version") if key not in config]
+    if missing:
+        return f"설정 오류: {', '.join(missing)} 항목이 없습니다"
     return "설정 정상"

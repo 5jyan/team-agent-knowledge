@@ -1,30 +1,10 @@
-# Python config validation demo
+# 설정 오류 메시지 예제
 
-This directory is a small, deterministic example of a configuration checker.
-It has no external service or dependency beyond Python's standard library.
-
-`config_checker.py` keeps `validate_config_before` as the pre-fix regression
-fixture. The corrected `validate_config` reports the missing required `model`
-key without echoing configuration values:
-
-```python
-if "model" not in config:
-    return "설정 오류: model 항목이 없습니다"
-return "설정 정상"
-```
-
-The demo runs both implementations against the same missing-model input and a
-model-present input. The printed input redacts values; the test suite checks the
-exact before/after outputs and that an unrelated value is not included in the
-error.
-
-Run from the repository root:
+설정에 `model`, `version` 키가 필요한 가상 예제다. 기존 방식은 model이 없으면 `설정 오류`만 표시했다. 개선된 방식은 빠진 항목을 모두 표시하고 설정값 자체는 출력하지 않는다.
 
 ```bash
-python3 -m unittest discover -s examples/config-validation -p 'test_*.py' -v
 python3 examples/config-validation/run_demo.py
+python3 -m unittest discover -s examples/config-validation -p 'test_*.py' -v
 ```
 
-This example only covers a missing `model` key. It does not validate other
-required fields, the contents or type of `model`, or a production application's
-configuration policy.
+두 항목이 모두 없으면 `설정 오류: model, version 항목이 없습니다`, model만 없으면 `설정 오류: model 항목이 없습니다`다. 두 항목이 있으면 정상이다. 이 예제는 키 존재만 검사하며 값의 타입이나 유효성을 보장하지 않는다.
