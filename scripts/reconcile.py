@@ -24,24 +24,23 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Protocol
 from urllib.parse import quote
 
+import jsonschema
 import requests
 import yaml
 
 try:  # Direct script invocation and ``python -m scripts.reconcile`` both work.
     from .validate import (
-        DEFAULT_SCHEMA,
         ValidationFailure,
+        _validate_entries,
         normalize_github_repository_url,
         normalize_source_repository,
-        validate_entries,
     )
 except ImportError:  # pragma: no cover - exercised by the CLI, not imports.
     from validate import (
-        DEFAULT_SCHEMA,
         ValidationFailure,
+        _validate_entries,
         normalize_github_repository_url,
         normalize_source_repository,
-        validate_entries,
     )
 
 
@@ -50,6 +49,7 @@ DEFAULT_BANK = "team-compiler"
 DEFAULT_SOURCE_REPOSITORY = "5jyan/team-agent-knowledge"
 DEFAULT_KNOWLEDGE_PATH = "knowledge"
 DEFAULT_STATE_FILE = ".reconcile-state.json"
+SNAPSHOT_SCHEMA_PATH = "schemas/knowledge.schema.yaml"
 
 
 class ReconcileError(RuntimeError):
@@ -245,11 +245,42 @@ def _assert_snapshot_is_current(
         raise ReconcileError("working tree has staged or unstaged tracked changes; publish the committed main snapshot")
 
 
+def _snapshot_validator(repository_root: Path, commit: str) -> jsonschema.Draft202012Validator:
+    """Build a validator from the schema stored in the approved Git tree."""
+    try:
+        raw_schema = _git(repository_root, "show", f"{commit}:{SNAPSHOT_SCHEMA_PATH}")
+    except ReconcileError as exc:
+        raise ValidationFailure([f"{SNAPSHOT_SCHEMA_PATH}: schema is missing from snapshot {commit}"]) from exc
+    try:
+        schema = yaml.safe_load(raw_schema)
+    except yaml.YAMLError as exc:
+        raise ValidationFailure([f"{SNAPSHOT_SCHEMA_PATH}: cannot parse YAML schema: {exc}"]) from exc
+    if not isinstance(schema, dict):
+        raise ValidationFailure([f"{SNAPSHOT_SCHEMA_PATH}: schema must be a YAML object"])
+    try:
+        jsonschema.Draft202012Validator.check_schema(schema)
+        return jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+    except jsonschema.SchemaError as exc:
+        raise ValidationFailure([f"{SNAPSHOT_SCHEMA_PATH}: invalid JSON Schema: {exc.message}"]) from exc
+
+
+def _validate_snapshot_entries(
+    repository_root: Path,
+    commit: str,
+    entries: Iterable[tuple[str, dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Apply the immutable snapshot schema and repository conventions."""
+    materialized = list(entries)
+    errors = _validate_entries(materialized, _snapshot_validator(repository_root, commit))
+    if errors:
+        raise ValidationFailure(errors)
+    return [record for _, record in materialized]
+
+
 def resolve_snapshot(
     repository_root: str | Path,
     snapshot_commit: str,
     knowledge_path: str = DEFAULT_KNOWLEDGE_PATH,
-    schema_path: str | Path = DEFAULT_SCHEMA,
     *,
     source_repository: str | None = None,
     require_origin: bool = True,
@@ -290,7 +321,7 @@ def resolve_snapshot(
         entries.append((relative_path, record))
         if isinstance(record.get("id"), str):
             source_paths[record["id"]] = relative_path
-    records = validate_entries(entries, schema_path=schema_path)
+    records = _validate_snapshot_entries(root, commit, entries)
     return Snapshot(commit, root, prefix, records, source_paths)
 
 
@@ -541,7 +572,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo-root", default=".", help="Git repository containing the approved knowledge")
     parser.add_argument("--snapshot-commit", required=True, help="Exact approved commit on main")
     parser.add_argument("--knowledge-path", default=DEFAULT_KNOWLEDGE_PATH, help="Knowledge directory in the Git tree")
-    parser.add_argument("--schema", default=str(DEFAULT_SCHEMA), help="Schema path for local validation")
     parser.add_argument("--bank-id", default=DEFAULT_BANK)
     parser.add_argument("--source-repository", default=DEFAULT_SOURCE_REPOSITORY)
     parser.add_argument("--api-url", default="http://127.0.0.1:8888")
@@ -555,7 +585,6 @@ def main(argv: list[str] | None = None) -> int:
             args.repo_root,
             args.snapshot_commit,
             args.knowledge_path,
-            args.schema,
             source_repository=source_repository,
             require_origin=True,
         )

@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from scripts.reconcile import (
     HindsightGateway,
     ReconcileError,
@@ -157,10 +159,13 @@ class ReconcileTests(unittest.TestCase):
             subprocess.run(["git", "-C", str(root), "config", "user.name", "Test"], check=True)
             knowledge = root / "knowledge"
             knowledge.mkdir()
-            import yaml
+            schemas = root / "schemas"
+            schemas.mkdir()
+            schema_source = Path(__file__).resolve().parents[1] / "schemas" / "knowledge.schema.yaml"
+            (schemas / "knowledge.schema.yaml").write_text(schema_source.read_text(encoding="utf-8"), encoding="utf-8")
 
             (knowledge / "COMP-001.yaml").write_text(yaml.safe_dump(valid_record(), sort_keys=False))
-            subprocess.run(["git", "-C", str(root), "add", "knowledge"], check=True)
+            subprocess.run(["git", "-C", str(root), "add", "knowledge", "schemas"], check=True)
             subprocess.run(["git", "-C", str(root), "commit", "-qm", "knowledge"], check=True)
             commit = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
             remote = root.parent / f"{root.name}-origin.git"
@@ -170,6 +175,42 @@ class ReconcileTests(unittest.TestCase):
             self.assertEqual(snapshot.commit, commit)
             with self.assertRaises(ReconcileError):
                 resolve_snapshot(root, commit, knowledge_path="examples/demo-compiler")
+
+    def test_snapshot_schema_is_read_from_commit_and_dirty_tree_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "-C", str(root), "init", "-q", "-b", "main"], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "user.email", "test@example.com"], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "user.name", "Test"], check=True)
+            knowledge = root / "knowledge"
+            schemas = root / "schemas"
+            knowledge.mkdir()
+            schemas.mkdir()
+            schema_source = Path(__file__).resolve().parents[1] / "schemas" / "knowledge.schema.yaml"
+            schema_path = schemas / "knowledge.schema.yaml"
+            schema_path.write_text(schema_source.read_text(encoding="utf-8"), encoding="utf-8")
+            (knowledge / "COMP-001.yaml").write_text(yaml.safe_dump(valid_record(), sort_keys=False), encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "knowledge", "schemas"], check=True)
+            subprocess.run(["git", "-C", str(root), "commit", "-qm", "approved snapshot"], check=True)
+            approved = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+
+            # A candidate branch changes the local schema so that the record
+            # would fail if resolve_snapshot read from the filesystem.
+            subprocess.run(["git", "-C", str(root), "checkout", "-qb", "candidate"], check=True)
+            candidate_schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+            candidate_schema["required"].append("candidate_only")
+            schema_path.write_text(yaml.safe_dump(candidate_schema, sort_keys=False), encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "schemas/knowledge.schema.yaml"], check=True)
+            subprocess.run(["git", "-C", str(root), "commit", "-qm", "candidate schema"], check=True)
+
+            resolved = resolve_snapshot(root, approved, require_origin=False)
+            self.assertEqual(resolved.commit, approved)
+
+            # A working-tree schema edit is rejected before any snapshot is
+            # read, so a local uncommitted candidate cannot affect publishing.
+            schema_path.write_text(schema_path.read_text(encoding="utf-8") + "\n# dirty candidate edit\n", encoding="utf-8")
+            with self.assertRaisesRegex(ReconcileError, "working tree"):
+                resolve_snapshot(root, approved, require_origin=False)
 
     def test_publish_requires_an_origin_remote(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
