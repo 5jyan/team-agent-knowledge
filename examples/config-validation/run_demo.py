@@ -8,9 +8,7 @@ from config_checker import validate_config, validate_config_before
 def display_input(config: dict[str, object]) -> str:
     """Show only the input shape so example output never echoes a value."""
 
-    if "model" in config:
-        return "{'model': '<redacted>'}"
-    return "{}"
+    return "{" + ", ".join(f"'{key}': '<redacted>'" for key in config) + "}"
 
 
 def show_case(label: str, config: dict[str, object]) -> None:
@@ -20,8 +18,9 @@ def show_case(label: str, config: dict[str, object]) -> None:
 
 
 def main() -> None:
-    show_case("missing-model", {})
-    show_case("model-present", {"model": "demo-model"})
+    show_case("missing-model", {"version": "1"})
+    show_case("missing-both", {})
+    show_case("both-present", {"model": "demo-model", "version": "1"})
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from config_checker import validate_config, validate_config_before
 
 class ConfigValidationTests(unittest.TestCase):
     def test_missing_model_gets_specific_error_after_the_fix(self) -> None:
-        config: dict[str, object] = {}
+        config: dict[str, object] = {"version": "1"}
 
         self.assertEqual(validate_config_before(config), "설정 오류")
         self.assertEqual(
@@ -18,18 +18,24 @@ class ConfigValidationTests(unittest.TestCase):
         )
 
     def test_model_present_is_normal_before_and_after(self) -> None:
-        config = {"model": "demo-model"}
+        config = {"model": "demo-model", "version": "1"}
 
         self.assertEqual(validate_config_before(config), "설정 정상")
         self.assertEqual(validate_config(config), "설정 정상")
 
     def test_missing_model_error_does_not_echo_other_config_values(self) -> None:
-        config = {"unrelated": "example-only-value"}
+        config = {"version": "1", "unrelated": "example-only-value"}
 
         result = validate_config(config)
 
         self.assertEqual(result, "설정 오류: model 항목이 없습니다")
         self.assertNotIn("example-only-value", result)
+
+    def test_reports_both_missing_keys(self) -> None:
+        self.assertEqual(validate_config({}), "설정 오류: model, version 항목이 없습니다")
+
+    def test_reports_missing_version(self) -> None:
+        self.assertEqual(validate_config({"model": "demo"}), "설정 오류: version 항목이 없습니다")
 
 
 if __name__ == "__main__":
